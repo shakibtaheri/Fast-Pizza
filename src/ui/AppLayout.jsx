@@ -7,16 +7,16 @@ export default function AppLayout() {
 
   const isLoading = navigation.state === "loading";
 
-  console.log(navigation);
-
   return (
-    <div className="layout">
+    <div className="grid h-dvh grid-rows-[auto_1fr_auto]">
       {isLoading && <Loader />}
       <Header />
-      <main>
-        <h1>Fast Pizza Co.</h1>
-        <Outlet />
-      </main>
+      <div className="overflow-y-scroll">
+        <main className="mx-auto max-w-3xl">
+          {/* pages are render in outlet */}
+          <Outlet />
+        </main>
+      </div>
       <CartOverview />
     </div>
   );

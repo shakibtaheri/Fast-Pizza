@@ -7,87 +7,140 @@ import {
   useNavigation,
 } from "react-router-dom";
 import { createOrder } from "../../services/apiRestaurant";
-
+import Button from "../../ui/Button";
+import { useSelector } from "react-redux";
+import { clearCart, getCart, getTotalCartPrice } from "../cart/cartSlice";
+import EmptyCart from "../cart/EmptyCart";
+import store from "../../store";
+import { formatCurrency } from "../../utils/helpers";
+import { useState } from "react";
 // https://uibakery.io/regex-library/phone-number
 const isValidPhone = (str) =>
   /^\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/.test(
-    str
+    str,
   );
 
-const fakeCart = [
-  {
-    pizzaId: 12,
-    name: "Mediterranean",
-    quantity: 2,
-    unitPrice: 16,
-    totalPrice: 32,
-  },
-  {
-    pizzaId: 6,
-    name: "Vegetale",
-    quantity: 1,
-    unitPrice: 13,
-    totalPrice: 13,
-  },
-  {
-    pizzaId: 11,
-    name: "Spinach and Mushroom",
-    quantity: 1,
-    unitPrice: 15,
-    totalPrice: 15,
-  },
-];
+// const fakeCart = [
+//   {
+//     pizzaId: 12,
+//     name: "Mediterranean",
+//     quantity: 2,
+//     unitPrice: 16,
+//     totalPrice: 32,
+//   },
+//   {
+//     pizzaId: 6,
+//     name: "Vegetale",
+//     quantity: 1,
+//     unitPrice: 13,
+//     totalPrice: 13,
+//   },
+//   {
+//     pizzaId: 11,
+//     name: "Spinach and Mushroom",
+//     quantity: 1,
+//     unitPrice: 15,
+//     totalPrice: 15,
+//   },
+// ];
 
 function CreateOrder() {
+  const [withPriority, setWithPriority] = useState(false);
+
+  const username = useSelector((state) => state.user.username);
+
   const navigation = useNavigation();
+  console.log(navigation);
+
   const isSubmitting = navigation.state === "submitting";
 
   //Mostly use for show error
   const formErrors = useActionData();
 
-  // const [withPriority, setWithPriority] = useState(false);
-  const cart = fakeCart;
+  const cart = useSelector(getCart);
+  const totalCartPrice = useSelector(getTotalCartPrice);
+  const priorityPrice = withPriority ? totalCartPrice * 0.2 : 0;
+  const tax = (totalCartPrice * 0.1).toFixed(2);
+  const totalPrice = totalCartPrice + priorityPrice + Number(tax);
 
+  if (!cart.length) return <EmptyCart />;
   return (
-    <div>
-      <h2>Ready to order? Let's go!</h2>
+    <div className="px-4 py-6">
+      <h2 className="mb-8 text-xl font-semibold">Ready to order? Let's go!</h2>
 
       <Form method="POST">
-        <div>
-          <label>First Name</label>
-          <input type="text" name="customer" required />
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="sm:basis-40">First Name</label>
+          <input
+            type="text"
+            name="customer"
+            required
+            className="input grow"
+            defaultValue={username}
+          />
         </div>
 
-        <div>
-          <label>Phone number</label>
-          <div>
-            <input type="tel" name="phone" required />
-          </div>
-        </div>
-        {formErrors?.phone && <p>{formErrors.phone}</p>}
-        <div>
-          <label>Address</label>
-          <div>
-            <input type="text" name="address" required />
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="sm:basis-40">Phone number</label>
+          <div className="grow">
+            <input type="tel" name="phone" required className="input w-full" />
+            {formErrors?.phone && (
+              <p className="mt-2 rounded-full bg-red-100 p-2 text-xs text-red-700">
+                {formErrors.phone}
+              </p>
+            )}
           </div>
         </div>
 
-        <div>
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="sm:basis-40">Address</label>
+          <div className="grow">
+            <input
+              type="text"
+              name="address"
+              required
+              className="input w-full"
+            />
+          </div>
+        </div>
+
+        <div className="mb-12 flex items-center gap-5">
           <input
             type="checkbox"
             name="priority"
             id="priority"
-            // value={withPriority}
-            // onChange={(e) => setWithPriority(e.target.checked)}
+            className="h-6 w-6 accent-yellow-400 focus:ring focus:ring-yellow-400 focus:ring-offset-2 focus:outline-none"
+            value={withPriority}
+            onChange={(e) => setWithPriority(e.target.checked)}
           />
-          <label htmlFor="priority">Want to yo give your order priority?</label>
+          <label htmlFor="priority" className="font-medium">
+            Want to yo give your order priority?
+          </label>
         </div>
 
         <div>
-          <input type="hidden" name="cart" value={JSON.stringify(cart)} />
-          <button disabled={isSubmitting}>
-            {isSubmitting ? "Placing order..." : "  "}
-          </button>
+          <input
+            type="hidden"
+            name="cart"
+            value={JSON.stringify(cart)}
+            className="bg-white"
+          />
+          <Button disabled={isSubmitting} type="primary">
+            {isSubmitting ? "Placing order..." : ` Order now for`}
+            <br />
+
+            <span className="mt-2 inline-block rounded-sm bg-yellow-200 p-1 text-[0.6rem]">
+              include tax: {tax}
+            </span>
+            <br />
+            <span className="mt-2 inline-block">
+              finall price:{" "}
+              <span className="rounded-full bg-amber-100 p-1 text-green-600">
+                {" "}
+                {formatCurrency(totalPrice)}
+              </span>
+            </span>
+          </Button>
         </div>
       </Form>
     </div>
@@ -97,13 +150,15 @@ function CreateOrder() {
 export async function action({ request }) {
   // formData => regular web api (provided by the browser)
   const formData = await request.formData();
+  console.log(formData);
   // recepie we need to follow
   const data = Object.fromEntries(formData);
-
+  console.log(data);
+  console.log(formData);
   const order = {
     ...data,
     cart: JSON.parse(data.cart),
-    priority: data.priority === "on",
+    priority: data.priority === "true",
   };
 
   const errors = {};
@@ -113,6 +168,11 @@ export async function action({ request }) {
 
   // if every thing be okay create new order and redirect
   const newOrder = await createOrder(order);
+
+  // On store object we can call dispatch directly (usedispatch can only call on components)
+  // Do not over use
+  store.dispatch(clearCart());
+
   // this redirect here create response
   return redirect(`/order/${newOrder.id}`);
 }
